@@ -118,18 +118,6 @@ class ProjectSerializer(core_serializers.SanitizeFieldSerializer,
         )
 
 
-class ProjectStateSerializer(core_serializers.DetailSerializer,
-                             serializers.ModelSerializer):
-    spatial_units = SpatialUnitSerializer(many=True, read_only=True)
-    parties = PartySerializer(many=True, read_only=True)
-    resources = ResourceSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Project
-        fields = ('id', 'description', 'urls', 'contacts',
-                  'spatial_units', 'parties', 'resources')
-
-
 class ProjectGeometrySerializer(geo_serializers.GeoFeatureModelSerializer):
     org = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
