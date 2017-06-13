@@ -96,9 +96,7 @@ class ProfileForm(SanitizeFieldsForm, forms.ModelForm):
         lang_codes = next(zip(*settings.LANGUAGES))
         language = self.data.get('language')
         if language not in lang_codes:
-            raise forms.ValidationError(
-                _("Select a valid choice. %s is not one "
-                  "of the available choices." % (language)))
+            raise forms.ValidationError()
         return language
 
     def clean_password(self):
