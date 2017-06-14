@@ -430,6 +430,25 @@ class ProfileFormTest(UserTestCase, TestCase):
         assert form.is_valid() is True
         assert user.language == 'fr'
 
+    def test_update_with_invalid_language(self):
+        user = UserFactory.create(email='john@beatles.uk',
+                                  password='imagine71',
+                                  language='en')
+        data = {
+            'username': 'imagine71',
+            'email': 'john2@beatles.uk',
+            'full_name': 'John Lennon',
+            'password': 'stg-pepper',
+            'language': 'invalid'
+        }
+        form = forms.ProfileForm(data, instance=user)
+        self.assertRaises(ValidationError, form.clean_language)
+        assert form.is_valid() is False
+        assert user.language == 'en'
+        assert (_("Select a valid choice. %s is not one "
+                "of the available choices." % (data['language'])) in
+                form.errors.get('language'))
+
     def test_sanitize(self):
         user = UserFactory.create(email='john@beatles.uk',
                                   password='imagine71')
