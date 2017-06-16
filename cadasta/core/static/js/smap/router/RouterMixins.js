@@ -360,12 +360,19 @@ function RouterMixins() {
             rm.addEventScript('script_add_lib.js');
         },
 
-        datepickerHooks: function() {
+        datepickerHooks: function () {
             $('.datepicker').datepicker({
                 yearRange: "c-200:c+200",
                 changeMonth: true,
                 changeYear: true,
             });
+        },
+
+        xlangHooks: function () {
+            rm.addEventScript('xlang.js');
+
+            var xl = xLang();
+            xl.getFormLang();
         },
 
         locationDeleteHooks: function () {
@@ -394,8 +401,8 @@ function RouterMixins() {
             });
         },
 
-        relationshipHooks: function () {
-            rm.addEventScript('rel_tenure.js');
+        relationshipAddHooks: function () {
+            rm.relationshipHooks();
             rm.addEventScript('party_attrs.js');
 
             var template = function (party) {
@@ -414,18 +421,25 @@ function RouterMixins() {
                 templateResult: template,
                 theme: "bootstrap",
             });
+        },
 
+        relationshipHooks: function () {
+            rm.addEventScript('rel_tenure.js');
+            rm.xlangHooks();
             rm.datepickerHooks();
             rm.requiredFieldHooks('tenurerelationship');
         },
 
         locationEditHooks: function () {
+            rm.xlangHooks();
             rm.requiredFieldHooks('spatial');
             rm.datepickerHooks();
             rm.locationFormButtons();
         },
 
         locationDetailHooks: function () {
+            rm.xlangHooks();
+
             function formatHashTab(tab) {
                 var hash = window.location.hash;
                 var coords = '';
