@@ -505,22 +505,16 @@ function RouterMixins() {
                 var formaction = $('.submit-btn', target.target).attr('formaction');
                 $('.submit-btn', target.target).prop({ 'disabled': true });
 
-                var data = $(this).serializeArray().reduce(function (obj, item) {
-                    obj[item.name] = item.value;
-                    return obj;
-                }, {});
-
                 // prevents error caused by submiting a 'location edit' form
                 // after deleting the geometry.
-                if (data.geometry && data.geometry.includes('[[null]]')) {
-                    data.geometry = 'None';
+                if ($('textarea[name="geometry"]').text().includes('[[null]]')) {
+                    $('textarea[name="geometry"]').text('None');
                 }
-
 
                 var posturl = $.ajax({
                     method: "POST",
                     url: formaction,
-                    data: data,
+                    data: $(this).serialize(),
                     success: function (response, status, xhr) {
                         form_error = posturl.getResponseHeader('Form-Error');
                         if (form_error) {
