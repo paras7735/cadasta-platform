@@ -118,8 +118,7 @@ def default_key():
 
 
 class VerificationDevice(Device):
-    unverified_phone = models.CharField(
-        max_length=16)
+    unverified_phone = models.CharField(max_length=16)
     secret_key = models.CharField(
         max_length=40,
         default=default_key,
