@@ -13,11 +13,14 @@ from django_otp.models import Device
 from django_otp.oath import TOTP
 from django_otp.util import random_hex, hex_validator
 from binascii import unhexlify
-from .gateways import TwilioSMS
+
+import logging
+import time
 
 from simple_history.models import HistoricalRecords
 from .manager import UserManager
 
+logger = logging.getLogger("accounts.token")
 
 PERMISSIONS_DIR = settings.BASE_DIR + '/permissions/'
 
@@ -37,8 +40,7 @@ class User(auth_base.AbstractBaseUser, auth.PermissionsMixin):
     is_active = abstract_user_field('is_active')
     date_joined = abstract_user_field('date_joined')
     email_verified = models.BooleanField(default=False)
-    # verify_email_by = models.DateTimeField(default=now_plus_48_hours)
-    phone = models.CharField(max_length=12, unique=True, blank=True)
+    phone = models.CharField(max_length=16, blank=True)
     phone_verified = models.BooleanField(default=False)
     change_pw = models.BooleanField(default=True)
 
@@ -47,7 +49,7 @@ class User(auth_base.AbstractBaseUser, auth.PermissionsMixin):
     history = HistoricalRecords()
 
     USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = ['email' or 'phone', 'full_name']
+    REQUIRED_FIELDS = ['email', 'phone', 'full_name']
 
     class Meta:
         ordering = ('username',)
@@ -112,16 +114,26 @@ def password_changed_reset(sender, request, user, **kwargs):
 
 
 def default_key():
-    return random_hex(20)
+    return random_hex(20).decode()
 
 
 class VerificationDevice(Device):
+    unverified_phone = models.CharField(
+        max_length=16)
     secret_key = models.CharField(
         max_length=40,
         default=default_key,
         validators=[hex_validator],
-        help_text="Hex-encoded secret key to generate totp tokens.")
-    user = models.ForeignKey(User)
+        help_text="Hex-encoded secret key to generate totp tokens.",
+        unique=True,
+    )
+    last_t = models.BigIntegerField(
+        default=-1,
+        help_text="The t value of the latest verified token.\
+         The next token must be at a higher time step.\
+         It makes sure a token is used only once."
+    )
+    user = models.OneToOneField(User)
 
     step = getattr(settings, 'TOTP_TOKEN_VALIDITY')
     digits = getattr(settings, 'TOTP_DIGITS')
@@ -135,22 +147,29 @@ class VerificationDevice(Device):
 
     def totp_obj(self):
         totp = TOTP(key=self.bin_key, step=self.step, digits=self.digits)
+        totp.time = time.time()
         return totp
 
     def generate_token(self):
         totp = self.totp_obj()
-        token = totp.token()
+        token = str(totp.token()).zfill(self.digits)
         message = "Your Cadasta Token is %s. It is valid for %s minutes." % (
-            token, getattr(settings, 'TOTP_TOKEN_VALIDITY') * 60)
+            token, getattr(settings, 'TOTP_TOKEN_VALIDITY') // 60)
 
-        twilio_obj = TwilioSMS()
-        twilio_obj.send_sms(phone=self.user.phone, message=message)
+        logger.info("Token has been sent to %s " % self.unverified_phone)
+        logger.info("%s" % message)
 
-    def verify_token(self, token):
+        return token
+
+    def verify_phone(self, token):
         totp = self.totp_obj()
-        if totp.verify(token, tolerance=0):
+        if (totp.t() > self.last_t) and totp.verify(token=token):
+            self.last_t = totp.t()
             self.user.phone_verified = True
+            self.user.phone = self.unverified_phone
+            self.user.save(update_fields=['phone', 'phone_verified'])
+            self.unverified_phone = ''
+            self.save()
+            return True
         else:
-            self.user.phone_verified = False
-
-        return self.user.phone_verified
+            return False
